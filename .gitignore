@@ -1,0 +1,28 @@
+# 敏感配置文件
+config.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志
+logs/
+
+# Excel 上传和结果文件
+excel/uploads/
+excel/results/
+
+# Claude 配置
+.claude/
+
+# 二进制文件
+excel-agent
+
+# 测试数据（可选，根据需要保留或删除）
+# playground/test_data/
