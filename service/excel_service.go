@@ -543,10 +543,16 @@ func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileCo
 		return nil, err
 	}
 
-	// 2. 异步模式：立即返回 task_id
-	// Note: The actual background processing goroutine will be added in Task 2
-	// For now, we just return the task ID with processing status
+	// 2. 异步模式：立即返回 task_id，后台处理
 	if async {
+		go func() {
+			asyncCtx := context.Background()
+			_, err := s.ProcessExcel(asyncCtx, taskID, prompt)
+			if err != nil {
+				logger.Error("异步处理失败", zap.String("task_id", taskID), zap.Error(err))
+			}
+		}()
+
 		return &AnalysisResult{
 			TaskID: taskID,
 			Status: TaskStatusProcessing,
