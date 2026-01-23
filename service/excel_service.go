@@ -526,6 +526,46 @@ func (s *ExcelService) GetTaskCount() map[TaskStatus]int {
 	return counts
 }
 
+// AnalysisResult 分析结果
+type AnalysisResult struct {
+	TaskID      string                 `json:"task_id"`
+	Status      TaskStatus             `json:"status"`
+	Result      interface{}            `json:"result,omitempty"`
+	DownloadURL string                 `json:"download_url,omitempty"`
+	QueryURL    string                 `json:"query_url,omitempty"`
+}
+
+// AnalyzeExcel 上传并分析 Excel 文件（支持同步和异步模式）
+func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileContent []byte, prompt string, async bool) (*AnalysisResult, error) {
+	// 1. 上传文件并创建任务
+	taskID, err := s.UploadExcel(ctx, filename, fileContent, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 异步模式：立即返回 task_id
+	if async {
+		return &AnalysisResult{
+			TaskID:   taskID,
+			Status:   TaskStatusProcessing,
+			QueryURL: fmt.Sprintf("/api/v1/excel/task/%s", taskID),
+		}, nil
+	}
+
+	// 3. 同步模式：处理并返回结果
+	result, err := s.ProcessExcel(ctx, taskID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return &AnalysisResult{
+		TaskID:      taskID,
+		Status:      TaskStatusCompleted,
+		Result:      result,
+		DownloadURL: fmt.Sprintf("/api/v1/excel/download/%s", taskID),
+	}, nil
+}
+
 func newExcelAgent(ctx context.Context, cfg *config.Config) (adk.Agent, error) {
 	operator := &LocalOperator{}
 
