@@ -545,8 +545,21 @@ func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileCo
 
 	// 2. 异步模式：立即返回 task_id，后台处理
 	if async {
+		// TODO: Add sync.WaitGroup to track async tasks for graceful shutdown
 		go func() {
-			asyncCtx := context.Background()
+			// 使用带超时的上下文，避免永久阻塞
+			asyncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+
+			// 添加 panic 保护
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Error("异步处理 panic",
+						zap.String("task_id", taskID),
+						zap.Any("panic", r))
+				}
+			}()
+
 			_, err := s.ProcessExcel(asyncCtx, taskID, prompt)
 			if err != nil {
 				logger.Error("异步处理失败", zap.String("task_id", taskID), zap.Error(err))
