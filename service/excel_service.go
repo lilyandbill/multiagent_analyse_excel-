@@ -528,11 +528,11 @@ func (s *ExcelService) GetTaskCount() map[TaskStatus]int {
 
 // AnalysisResult 分析结果
 type AnalysisResult struct {
-	TaskID      string                 `json:"task_id"`
-	Status      TaskStatus             `json:"status"`
-	Result      interface{}            `json:"result,omitempty"`
-	DownloadURL string                 `json:"download_url,omitempty"`
-	QueryURL    string                 `json:"query_url,omitempty"`
+	TaskID string      `json:"task_id"`
+	Status TaskStatus  `json:"status"`
+	Result interface{} `json:"result,omitempty"`
+	// Note: URL building should be done in Handler layer, not Service layer
+	// DownloadURL and QueryURL are constructed by the API handlers
 }
 
 // AnalyzeExcel 上传并分析 Excel 文件（支持同步和异步模式）
@@ -544,11 +544,14 @@ func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileCo
 	}
 
 	// 2. 异步模式：立即返回 task_id
+	// Note: The actual background processing goroutine will be added in Task 2
+	// For now, we just return the task ID with processing status
 	if async {
 		return &AnalysisResult{
-			TaskID:   taskID,
-			Status:   TaskStatusProcessing,
-			QueryURL: fmt.Sprintf("/api/v1/excel/task/%s", taskID),
+			TaskID: taskID,
+			Status: TaskStatusProcessing,
+			// Note: URL building should be done in Handler layer, not Service layer
+			// Handler will construct: /api/v1/excel/task/{taskID}
 		}, nil
 	}
 
@@ -559,10 +562,11 @@ func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileCo
 	}
 
 	return &AnalysisResult{
-		TaskID:      taskID,
-		Status:      TaskStatusCompleted,
-		Result:      result,
-		DownloadURL: fmt.Sprintf("/api/v1/excel/download/%s", taskID),
+		TaskID: taskID,
+		Status: TaskStatusCompleted,
+		Result: result,
+		// Note: URL building should be done in Handler layer, not Service layer
+		// Handler will construct: /api/v1/excel/download/{taskID}
 	}, nil
 }
 
