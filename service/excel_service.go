@@ -553,7 +553,7 @@ func (s *ExcelService) AnalyzeExcel(ctx context.Context, filename string, fileCo
 	}
 
 	// 3. 同步模式：处理并返回结果
-	result, err := s.ProcessExcel(ctx, taskID, "")
+	result, err := s.ProcessExcel(ctx, taskID, prompt)
 	if err != nil {
 		return nil, err
 	}
