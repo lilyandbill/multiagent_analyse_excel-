@@ -18,6 +18,11 @@ package replanner
 
 import (
 	"context"
+	"excel-agent/agents"
+	"excel-agent/generic"
+	"excel-agent/params"
+	"excel-agent/tools"
+	"excel-agent/utils"
 	"fmt"
 
 	"github.com/bytedance/sonic"
@@ -26,12 +31,6 @@ import (
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
-
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/agents"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/generic"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/params"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/tools"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 )
 
 var (

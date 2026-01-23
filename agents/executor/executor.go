@@ -18,6 +18,7 @@ package executor
 
 import (
 	"context"
+	"excel-agent/utils"
 
 	"github.com/cloudwego/eino-ext/components/tool/commandline"
 	"github.com/cloudwego/eino/adk"
@@ -26,8 +27,6 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 )
 
 var executorPrompt = prompt.FromMessages(schema.FString,

@@ -9,18 +9,27 @@ import (
 
 // Config 配置结构体
 type Config struct {
-	LLM     LLMConfig     `yaml:"llm"`
+	ARK     ARKConfig     `yaml:"ark,omitempty"`
+	OpenAI  OpenAIConfig  `yaml:"openai,omitempty"`
 	Excel   ExcelConfig   `yaml:"excel"`
 	Server  ServerConfig  `yaml:"server"`
 	Log     LogConfig     `yaml:"log"`
 }
 
-// LLMConfig LLM 配置
-type LLMConfig struct {
-	Model    string  `yaml:"model"`
-	APIKey   string  `yaml:"api_key"`
-	BaseURL  string  `yaml:"base_url,omitempty"`
-	Temp     float32 `yaml:"temperature,omitempty"`
+// ARKConfig ARK 配置
+type ARKConfig struct {
+	Model    string `yaml:"model,omitempty"`
+	APIKey   string `yaml:"api_key,omitempty"`
+	BaseURL  string `yaml:"base_url,omitempty"`
+	Region   string `yaml:"region,omitempty"`
+}
+
+// OpenAIConfig OpenAI 配置
+type OpenAIConfig struct {
+	Model    string `yaml:"model,omitempty"`
+	APIKey   string `yaml:"api_key,omitempty"`
+	BaseURL  string `yaml:"base_url,omitempty"`
+	ByAzure  bool   `yaml:"by_azure,omitempty"`
 }
 
 // ExcelConfig Excel 配置
@@ -73,11 +82,6 @@ func LoadConfig(path ...string) (*Config, error) {
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() *Config {
 	return &Config{
-		LLM: LLMConfig{
-			Model:  "gpt-3.5-turbo",
-			APIKey: "",
-			Temp:   0.7,
-		},
 		Excel: ExcelConfig{
 			Dir:     "./excel",
 			MaxRows: 10000,
@@ -100,11 +104,33 @@ func getDefaultConfig() *Config {
 
 // fillEnvVars 填充环境变量
 func fillEnvVars(cfg Config) Config {
-	if cfg.LLM.APIKey == "" {
-		cfg.LLM.APIKey = os.Getenv("OPENAI_API_KEY")
+	// ARK 配置
+	if cfg.ARK.Model == "" {
+		cfg.ARK.Model = os.Getenv("ARK_MODEL")
 	}
-	if cfg.LLM.BaseURL == "" {
-		cfg.LLM.BaseURL = os.Getenv("OPENAI_BASE_URL")
+	if cfg.ARK.APIKey == "" {
+		cfg.ARK.APIKey = os.Getenv("ARK_API_KEY")
 	}
+	if cfg.ARK.BaseURL == "" {
+		cfg.ARK.BaseURL = os.Getenv("ARK_BASE_URL")
+	}
+	if cfg.ARK.Region == "" {
+		cfg.ARK.Region = os.Getenv("ARK_REGION")
+	}
+
+	// OpenAI 配置
+	if cfg.OpenAI.Model == "" {
+		cfg.OpenAI.Model = os.Getenv("OPENAI_MODEL")
+	}
+	if cfg.OpenAI.APIKey == "" {
+		cfg.OpenAI.APIKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if cfg.OpenAI.BaseURL == "" {
+		cfg.OpenAI.BaseURL = os.Getenv("OPENAI_BASE_URL")
+	}
+	if !cfg.OpenAI.ByAzure {
+		cfg.OpenAI.ByAzure = os.Getenv("OPENAI_BY_AZURE") == "true"
+	}
+
 	return cfg
 }

@@ -18,7 +18,8 @@ package utils
 
 import (
 	"context"
-	"os"
+
+	"excel-agent/config"
 
 	"github.com/cloudwego/eino-ext/components/model/ark"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -34,12 +35,24 @@ func NewChatModel(ctx context.Context, opts ...CreateChatModelOption) (cm model.
 		opt(o)
 	}
 
-	if modelName := os.Getenv("ARK_MODEL"); modelName != "" {
+	// 如果没有提供配置，尝试从配置文件加载
+	var cfg *config.Config
+	if o.Config != nil {
+		cfg = o.Config
+	} else {
+		cfg, err = config.LoadConfig()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 优先检查 ARK 配置
+	if cfg.ARK.Model != "" {
 		conf := &ark.ChatModelConfig{
-			APIKey:      os.Getenv("ARK_API_KEY"),
-			BaseURL:     os.Getenv("ARK_BASE_URL"),
-			Region:      os.Getenv("ARK_REGION"),
-			Model:       modelName,
+			APIKey:      cfg.ARK.APIKey,
+			BaseURL:     cfg.ARK.BaseURL,
+			Region:      cfg.ARK.Region,
+			Model:       cfg.ARK.Model,
 			MaxTokens:   o.MaxTokens,
 			Temperature: o.Temperature,
 			TopP:        o.TopP,
@@ -61,15 +74,12 @@ func NewChatModel(ctx context.Context, opts ...CreateChatModelOption) (cm model.
 			}
 		}
 		cm, err = ark.NewChatModel(ctx, conf)
-
-	} else if modelName = os.Getenv("OPENAI_MODEL"); modelName != "" {
+	} else if cfg.OpenAI.Model != "" {
 		conf := &openai.ChatModelConfig{
-			APIKey: os.Getenv("OPENAI_API_KEY"),
-			ByAzure: func() bool {
-				return os.Getenv("OPENAI_BY_AZURE") == "true"
-			}(),
-			BaseURL:     os.Getenv("OPENAI_BASE_URL"),
-			Model:       modelName,
+			APIKey:      cfg.OpenAI.APIKey,
+			ByAzure:     cfg.OpenAI.ByAzure,
+			BaseURL:     cfg.OpenAI.BaseURL,
+			Model:       cfg.OpenAI.Model,
 			MaxTokens:   o.MaxTokens,
 			Temperature: o.Temperature,
 			TopP:        o.TopP,
@@ -90,6 +100,7 @@ func NewChatModel(ctx context.Context, opts ...CreateChatModelOption) (cm model.
 }
 
 type option struct {
+	Config          *config.Config
 	MaxTokens       *int
 	Temperature     *float32
 	TopP            *float32

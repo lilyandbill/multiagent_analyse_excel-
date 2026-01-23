@@ -18,6 +18,7 @@ package planner
 
 import (
 	"context"
+	"excel-agent/params"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino-ext/components/tool/commandline"
@@ -27,10 +28,10 @@ import (
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
 
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/agents"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/generic"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/params"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
+	"excel-agent/agents"
+	"excel-agent/config"
+	"excel-agent/generic"
+	"excel-agent/utils"
 )
 
 var (
@@ -81,8 +82,8 @@ File Preview (If file has xlsx extension, the preview will provide the specific 
 	)
 )
 
-func NewPlanner(ctx context.Context, op commandline.Operator) (adk.Agent, error) {
-	cm, err := newPlannerChatModel(ctx)
+func NewPlanner(ctx context.Context, op commandline.Operator, cfg *config.Config) (adk.Agent, error) {
+	cm, err := newPlannerChatModel(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +102,7 @@ func NewPlanner(ctx context.Context, op commandline.Operator) (adk.Agent, error)
 	return agents.NewWrite2PlanMDWrapper(a, op), nil
 }
 
-func newPlannerChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
+func newPlannerChatModel(ctx context.Context, cfg *config.Config) (model.ToolCallingChatModel, error) {
 	sc, err := generic.PlanToolInfo.ToJSONSchema()
 	if err != nil {
 		return nil, err

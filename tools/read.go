@@ -19,10 +19,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"excel-agent/utils"
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 	"github.com/cloudwego/eino-ext/components/tool/commandline"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"

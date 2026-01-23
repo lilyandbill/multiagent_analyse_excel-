@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"excel-agent/agents/executor"
+	"excel-agent/agents/planner"
+	"excel-agent/agents/replanner"
+	"excel-agent/agents/report"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +21,7 @@ import (
 	"excel-agent/params"
 
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
@@ -84,6 +89,12 @@ func NewExcelService(cfg *config.Config) (*ExcelService, error) {
 			return nil, fmt.Errorf("创建目录失败 %s: %w", dir, err)
 		}
 	}
+	ctx := context.Background()
+	// 创建excel agent
+	agent, err := newExcelAgent(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("创建excel agent失败, err: %w", err)
+	}
 
 	svc := &ExcelService{
 		cfg:        cfg,
@@ -92,6 +103,7 @@ func NewExcelService(cfg *config.Config) (*ExcelService, error) {
 		resultDir:  resultDir,
 		taskExpiry: 24 * time.Hour, // 默认 24 小时过期
 		stopChan:   make(chan struct{}),
+		agent:      agent,
 	}
 
 	// 启动过期任务清理 goroutine
@@ -235,7 +247,7 @@ func (s *ExcelService) ProcessExcel(ctx context.Context, taskID string, prompt s
 	if err != nil {
 		return nil, fmt.Errorf("预览文件失败: %w", err)
 	}
-
+	
 	logger.Info("开始处理任务", zap.String("task_id", taskID), zap.String("prompt", prompt))
 
 	// 使用 eino agent 处理
@@ -512,4 +524,52 @@ func (s *ExcelService) GetTaskCount() map[TaskStatus]int {
 		counts[task.Status]++
 	}
 	return counts
+}
+
+func newExcelAgent(ctx context.Context, cfg *config.Config) (adk.Agent, error) {
+	operator := &LocalOperator{}
+
+	p, err := planner.NewPlanner(ctx, operator, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	e, err := executor.NewExecutor(ctx, operator)
+	if err != nil {
+		return nil, err
+	}
+
+	rp, err := replanner.NewReplanner(ctx, operator)
+	if err != nil {
+		return nil, err
+	}
+
+	planExecuteAgent, err := planexecute.New(ctx, &planexecute.Config{
+		Planner:       p,
+		Executor:      e,
+		Replanner:     rp,
+		MaxIterations: 20,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	reportAgent, err := report.NewReportAgent(ctx, operator)
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := adk.NewSequentialAgent(ctx, &adk.SequentialAgentConfig{
+		Name:        "SequentialAgent",
+		Description: "sequential agent",
+		SubAgents: []adk.Agent{
+			planExecuteAgent,
+			reportAgent,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, nil
 }

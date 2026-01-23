@@ -19,6 +19,9 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"excel-agent/generic"
+	"excel-agent/params"
+	"excel-agent/utils"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -26,10 +29,6 @@ import (
 	"github.com/cloudwego/eino-ext/components/tool/commandline"
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
-
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/generic"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/params"
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 )
 
 func NewWrite2PlanMDWrapper(a adk.Agent, op commandline.Operator) adk.Agent {

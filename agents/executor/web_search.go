@@ -18,13 +18,12 @@ package executor
 
 import (
 	"context"
+	"excel-agent/utils"
 
 	"github.com/cloudwego/eino-ext/components/tool/duckduckgo/v2"
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
-
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 )
 
 func newWebSearchAgent(ctx context.Context) (adk.Agent, error) {

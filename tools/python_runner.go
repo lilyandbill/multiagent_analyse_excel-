@@ -18,19 +18,18 @@ package tools
 
 import (
 	"context"
+	"excel-agent/params"
+	"excel-agent/utils"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/utils"
 	"github.com/cloudwego/eino-ext/components/tool/commandline"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 	jsoniter "github.com/json-iterator/go"
-
-	"github.com/cloudwego/eino-examples/adk/multiagent/integration-excel-agent/params"
 )
 
 var (
