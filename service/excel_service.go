@@ -20,6 +20,7 @@ import (
 	"excel-agent/logger"
 	"excel-agent/params"
 
+	"github.com/bytedance/sonic"
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 	"github.com/cloudwego/eino/schema"
@@ -423,16 +424,64 @@ func (s *ExcelService) GetFilePreviews(ctx context.Context, taskID string) ([]*g
 // GetResultFile 获取结果文件路径
 func (s *ExcelService) GetResultFile(ctx context.Context, taskID string) (string, error) {
 	s.taskMu.RLock()
-	_, exists := s.tasks[taskID]
+	task, exists := s.tasks[taskID]
 	s.taskMu.RUnlock()
 
 	if !exists {
 		return "", fmt.Errorf("任务不存在: %s", taskID)
 	}
 
+	// 1. 优先从 final_report.json 获取 Agent 生成结果文件
+	reportPath := filepath.Join(task.WorkDir, "final_report.json")
+	if reportData, err := os.ReadFile(reportPath); err == nil {
+		var submitResult generic.SubmitResult
+		if err := sonic.Unmarshal(reportData, &submitResult); err == nil && len(submitResult.Files) > 0 {
+			// 找到第一个有效的结果文件
+			for _, file := range submitResult.Files {
+				if file.Path != "" {
+					// 检查文件是否存在
+					if _, statErr := os.Stat(file.Path); statErr == nil {
+						logger.Info("使用 Agent 生成的结果文件",
+							zap.String("task_id", taskID),
+							zap.String("file_path", file.Path))
+						return file.Path, nil
+					}
+				}
+			}
+		}
+	}
+
+	// 2. 扫描工作目录，查找 Excel 结果文件
+	files, err := os.ReadDir(task.WorkDir)
+	if err == nil {
+		// 优先查找包含 output、result 的 Excel 文件
+		priorityPatterns := []string{"output.xlsx", "result.xlsx", "结果.xlsx"}
+		for _, pattern := range priorityPatterns {
+			candidatePath := filepath.Join(task.WorkDir, pattern)
+			if _, err := os.Stat(candidatePath); err == nil {
+				logger.Info("找到匹配的结果文件",
+					zap.String("task_id", taskID),
+					zap.String("file_path", candidatePath))
+				return candidatePath, nil
+			}
+		}
+
+		// 查找任何 xlsx 文件（排除上传的原文件）
+		uploadedFile := filepath.Base(task.Filename)
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".xlsx") && file.Name() != uploadedFile {
+				candidatePath := filepath.Join(task.WorkDir, file.Name())
+				logger.Info("找到工作目录中的 Excel 文件",
+					zap.String("task_id", taskID),
+					zap.String("file_path", candidatePath))
+				return candidatePath, nil
+			}
+		}
+	}
+
+	// 3. 回退到创建默认结果文件
 	resultFile := filepath.Join(s.resultDir, "result_"+taskID+".xlsx")
 	if _, err := os.Stat(resultFile); os.IsNotExist(err) {
-		// 如果结果文件不存在，创建一个空的
 		if err := s.createMockResultFile(resultFile); err != nil {
 			return "", err
 		}
