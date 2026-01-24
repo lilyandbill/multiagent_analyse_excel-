@@ -157,10 +157,11 @@ excel-agent/
 
 ## API Endpoints
 
-- `POST /api/v1/excel/upload` - 上传 Excel 文件，创建任务
-- `POST /api/v1/excel/process` - 同步处理任务
-- `POST /api/v1/excel/process/async` - 异步处理任务
-- `GET /api/v1/excel/task/{task_id}` - 查询任务状态
+- `POST /api/v1/excel/analyze` - 上传文件并分析（支持同步/异步）
+  - 参数：file（文件）、prompt（问题）、async（是否异步，默认 false）
+  - 同步模式：直接返回分析结果和下载链接
+  - 异步模式：返回 task_id 和查询 URL
+- `GET /api/v1/excel/task/{task_id}` - 查询任务状态和结果
 - `GET /api/v1/excel/download/{task_id}` - 下载结果文件
 - `GET /api/v1/excel/tasks` - 列出所有任务（支持分页和状态筛选）
 - `GET /api/v1/excel/preview/{task_id}` - 预览文件内容
