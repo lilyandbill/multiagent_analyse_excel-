@@ -73,9 +73,30 @@ excel-agent/
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
-| `/` | GET | 前端页面 |
-| `/api/excel/upload` | POST | 上传 Excel 文件 |
-| `/api/excel/chat` | POST | 聊天对话 |
+| `/api/v1/excel/analyze` | POST | 上传并分析 Excel 文件（同步/异步） |
+| `/api/v1/excel/task/{task_id}` | GET | 查询任务状态 |
+| `/api/v1/excel/download/{task_id}` | GET | 下载结果文件 |
+| `/api/v1/excel/tasks` | GET | 列出所有任务（分页） |
+| `/api/v1/excel/preview/{task_id}` | GET | 预览文件内容 |
+| `/api/v1/excel/task/{task_id}` | DELETE | 删除任务 |
+
+### 使用示例
+
+**同步分析（推荐用于简单任务）：**
+```bash
+curl -X POST "http://localhost:8080/api/v1/excel/analyze" \
+  -F "file=@data.xlsx" \
+  -F "prompt=计算销售额总和" \
+  -F "async=false"
+```
+
+**异步分析（推荐用于复杂任务）：**
+```bash
+curl -X POST "http://localhost:8080/api/v1/excel/analyze" \
+  -F "file=@data.xlsx" \
+  -F "prompt=生成数据透视表和图表" \
+  -F "async=true"
+```
 
 ## 配置说明
 
