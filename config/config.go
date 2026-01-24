@@ -9,39 +9,39 @@ import (
 
 // Config 配置结构体
 type Config struct {
-	ARK     ARKConfig     `yaml:"ark,omitempty"`
-	OpenAI  OpenAIConfig  `yaml:"openai,omitempty"`
-	Excel   ExcelConfig   `yaml:"excel"`
-	Server  ServerConfig  `yaml:"server"`
-	Log     LogConfig     `yaml:"log"`
+	ARK    ARKConfig    `yaml:"ark,omitempty"`
+	OpenAI OpenAIConfig `yaml:"openai,omitempty"`
+	Excel  ExcelConfig  `yaml:"excel"`
+	Server ServerConfig `yaml:"server"`
+	Log    LogConfig    `yaml:"log"`
 }
 
 // ARKConfig ARK 配置
 type ARKConfig struct {
-	Model    string `yaml:"model,omitempty"`
-	APIKey   string `yaml:"api_key,omitempty"`
-	BaseURL  string `yaml:"base_url,omitempty"`
-	Region   string `yaml:"region,omitempty"`
+	Model   string `yaml:"model,omitempty"`
+	APIKey  string `yaml:"api_key,omitempty"`
+	BaseURL string `yaml:"base_url,omitempty"`
+	Region  string `yaml:"region,omitempty"`
 }
 
 // OpenAIConfig OpenAI 配置
 type OpenAIConfig struct {
-	Model    string `yaml:"model,omitempty"`
-	APIKey   string `yaml:"api_key,omitempty"`
-	BaseURL  string `yaml:"base_url,omitempty"`
-	ByAzure  bool   `yaml:"by_azure,omitempty"`
+	Model   string `yaml:"model,omitempty"`
+	APIKey  string `yaml:"api_key,omitempty"`
+	BaseURL string `yaml:"base_url,omitempty"`
+	ByAzure bool   `yaml:"by_azure,omitempty"`
 }
 
 // ExcelConfig Excel 配置
 type ExcelConfig struct {
-	Dir      string  `yaml:"dir"`
-	MaxRows  int     `yaml:"max_rows,omitempty"`
+	Dir     string `yaml:"dir"`
+	MaxRows int    `yaml:"max_rows,omitempty"`
 }
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host    string  `yaml:"host,omitempty"`
-	Port    int     `yaml:"port,omitempty"`
+	Host string `yaml:"host,omitempty"`
+	Port int    `yaml:"port,omitempty"`
 }
 
 // LogConfig 日志配置
@@ -74,7 +74,7 @@ func LoadConfig(path ...string) (*Config, error) {
 	}
 
 	// 填充环境变量
-	 cfg = fillEnvVars(cfg)
+	cfg = fillEnvVars(cfg)
 
 	return &cfg, nil
 }

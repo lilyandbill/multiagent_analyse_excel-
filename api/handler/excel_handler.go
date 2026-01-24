@@ -48,7 +48,6 @@ type ListTasksRequest struct {
 	Status   string `form:"status"`
 }
 
-
 // newResponse 创建统一响应
 func newResponse(c *gin.Context, success bool, code int, message string, data interface{}) {
 	traceID := c.GetString("trace_id")

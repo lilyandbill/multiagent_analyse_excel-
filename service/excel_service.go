@@ -247,7 +247,7 @@ func (s *ExcelService) ProcessExcel(ctx context.Context, taskID string, prompt s
 	if err != nil {
 		return nil, fmt.Errorf("预览文件失败: %w", err)
 	}
-	
+
 	logger.Info("开始处理任务", zap.String("task_id", taskID), zap.String("prompt", prompt))
 
 	// 使用 eino agent 处理
@@ -334,13 +334,15 @@ func (s *ExcelService) runAgent(ctx context.Context, taskID, query, workDir stri
 		default:
 			event, ok := iter.Next()
 			if !ok {
-				break
+				// 迭代结束，退出循环
+				goto done
 			}
 			if event.Output != nil && event.Output.MessageOutput != nil {
 				lastMessage = event.Output.MessageOutput.Message
 			}
 		}
 	}
+done:
 
 	if lastMessage == nil {
 		return nil, fmt.Errorf("处理未返回结果")
