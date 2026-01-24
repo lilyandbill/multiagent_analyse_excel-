@@ -3,6 +3,7 @@ package handler
 import (
 	"excel-agent/logger"
 	"excel-agent/service"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -45,6 +46,12 @@ type ListTasksRequest struct {
 	Page     int    `form:"page"`
 	PageSize int    `form:"page_size"`
 	Status   string `form:"status"`
+}
+
+// AnalyzeExcelRequest 分析 Excel 请求
+type AnalyzeExcelRequest struct {
+	// 文件和 prompt 从 form data 获取
+	Async bool `form:"async"` // 是否异步处理
 }
 
 // newResponse 创建统一响应
@@ -341,4 +348,83 @@ func (h *ExcelHandler) DeleteTask(c *gin.Context) {
 
 	logger.Info("任务已删除", zap.String("task_id", taskID))
 	newResponse(c, true, 0, "任务删除成功", nil)
+}
+
+// AnalyzeExcel 上传并分析 Excel 文件
+// @Summary 上传并分析 Excel 文件
+// @Description 上传 Excel 文件并直接启动 AI 分析，支持同步和异步模式
+// @Tags Excel
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Excel 文件"
+// @Param prompt formData string true "处理提示"
+// @Param async formData bool false "是否异步处理" default(false)
+// @Success 200 {object} CommonResponse
+// @Router /api/v1/excel/analyze [post]
+func (h *ExcelHandler) AnalyzeExcel(c *gin.Context) {
+	// 获取文件
+	file, err := c.FormFile("file")
+	if err != nil {
+		logger.Error("获取文件失败", zap.Error(err))
+		newResponse(c, false, 400, "请上传有效的 Excel 文件", nil)
+		return
+	}
+
+	// 打开文件
+	src, err := file.Open()
+	if err != nil {
+		logger.Error("打开文件失败", zap.Error(err))
+		newResponse(c, false, 500, "打开文件失败", nil)
+		return
+	}
+	defer src.Close()
+
+	// 读取文件内容
+	fileContent, err := io.ReadAll(src)
+	if err != nil {
+		logger.Error("读取文件内容失败", zap.Error(err))
+		newResponse(c, false, 500, "读取文件内容失败", nil)
+		return
+	}
+
+	// 获取提示
+	prompt := c.PostForm("prompt")
+	if prompt == "" {
+		newResponse(c, false, 400, "请提供处理提示", nil)
+		return
+	}
+
+	// 获取异步模式参数
+	asyncStr := c.PostForm("async")
+	async := false
+	if asyncStr == "true" || asyncStr == "1" {
+		async = true
+	}
+
+	// 调用 Service 层分析
+	result, err := h.excelService.AnalyzeExcel(c.Request.Context(), file.Filename, fileContent, prompt, async)
+	if err != nil {
+		logger.Error("分析失败", zap.Error(err))
+		newResponse(c, false, 500, "分析失败: "+err.Error(), nil)
+		return
+	}
+
+	logger.Info("分析完成", zap.String("task_id", result.TaskID), zap.Bool("async", async))
+
+	// 构建响应数据，添加 URL
+	responseData := map[string]interface{}{
+		"task_id": result.TaskID,
+		"status":  result.Status,
+	}
+
+	if result.Result != nil {
+		responseData["result"] = result.Result
+		responseData["download_url"] = fmt.Sprintf("/api/v1/excel/download/%s", result.TaskID)
+	}
+
+	if result.Status == "processing" {
+		responseData["query_url"] = fmt.Sprintf("/api/v1/excel/task/%s", result.TaskID)
+	}
+
+	newResponse(c, true, 0, "分析成功", responseData)
 }
