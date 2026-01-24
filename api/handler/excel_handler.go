@@ -66,6 +66,7 @@ func newResponse(c *gin.Context, success bool, code int, message string, data in
 }
 
 // UploadExcel 上传 Excel 文件
+// Deprecated: Use AnalyzeExcel instead. This endpoint is replaced by /api/v1/excel/analyze
 // @Summary 上传 Excel 文件
 // @Description 上传一个 Excel 文件并返回任务 ID
 // @Tags Excel
@@ -120,6 +121,7 @@ func (h *ExcelHandler) UploadExcel(c *gin.Context) {
 }
 
 // ProcessExcel 处理 Excel 任务（同步）
+// Deprecated: Use AnalyzeExcel instead. This endpoint is replaced by /api/v1/excel/analyze
 // @Summary 处理 Excel 任务（同步）
 // @Description 根据任务 ID 同步处理 Excel 文件
 // @Tags Excel
@@ -151,6 +153,7 @@ func (h *ExcelHandler) ProcessExcel(c *gin.Context) {
 }
 
 // ProcessExcelAsync 异步处理 Excel 任务
+// Deprecated: Use AnalyzeExcel instead. This endpoint is replaced by /api/v1/excel/analyze
 // @Summary 异步处理 Excel 任务
 // @Description 异步处理 Excel 文件，立即返回任务 ID
 // @Tags Excel
