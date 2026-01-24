@@ -49,19 +49,15 @@ func (r *Router) SetupRoutes() {
 		// Excel 相关接口
 		excel := v1.Group("/excel")
 		{
-			// 文件上传和基本操作
-			excel.POST("/upload", r.excelHandler.UploadExcel)
-			excel.GET("/tasks", r.excelHandler.ListTasks)
+			// 分析接口（新）
+			excel.POST("/analyze", r.excelHandler.AnalyzeExcel)
 
-			// 任务操作
+			// 任务管理
+			excel.GET("/tasks", r.excelHandler.ListTasks)
 			excel.GET("/task/:task_id", r.excelHandler.GetTaskStatus)
 			excel.GET("/preview/:task_id", r.excelHandler.PreviewFile)
 			excel.GET("/download/:task_id", r.excelHandler.DownloadResult)
 			excel.DELETE("/task/:task_id", r.excelHandler.DeleteTask)
-
-			// 处理接口
-			excel.POST("/process", r.excelHandler.ProcessExcel)
-			excel.POST("/process/async", r.excelHandler.ProcessExcelAsync)
 		}
 
 		// 统计接口
@@ -175,9 +171,7 @@ func (r *Router) getStats(c *gin.Context) {
 		"message": "统计信息",
 		"data": gin.H{
 			"endpoints": []string{
-				"POST   /api/v1/excel/upload",
-				"POST   /api/v1/excel/process",
-				"POST   /api/v1/excel/process/async",
+				"POST   /api/v1/excel/analyze",
 				"GET    /api/v1/excel/task/:task_id",
 				"GET    /api/v1/excel/preview/:task_id",
 				"GET    /api/v1/excel/download/:task_id",
