@@ -48,11 +48,6 @@ type ListTasksRequest struct {
 	Status   string `form:"status"`
 }
 
-// AnalyzeExcelRequest 分析 Excel 请求
-type AnalyzeExcelRequest struct {
-	// 文件和 prompt 从 form data 获取
-	Async bool `form:"async"` // 是否异步处理
-}
 
 // newResponse 创建统一响应
 func newResponse(c *gin.Context, success bool, code int, message string, data interface{}) {
@@ -367,6 +362,14 @@ func (h *ExcelHandler) AnalyzeExcel(c *gin.Context) {
 	if err != nil {
 		logger.Error("获取文件失败", zap.Error(err))
 		newResponse(c, false, 400, "请上传有效的 Excel 文件", nil)
+		return
+	}
+
+	// 验证文件大小
+	const maxFileSize = 100 * 1024 * 1024 // 100MB
+	if file.Size > maxFileSize {
+		logger.Warn("文件大小超过限制", zap.Int64("size", file.Size), zap.Int64("max", maxFileSize))
+		newResponse(c, false, 400, "文件大小超过限制 (最大 100MB)", nil)
 		return
 	}
 
