@@ -327,28 +327,28 @@ func (s *ExcelService) runAgent(ctx context.Context, taskID, query, workDir stri
 
 	iter := runner.Run(ctx, []*schema.Message{userMsg})
 
-// 	var lastMessage *schema.Message
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return nil, ctx.Err()
-// 		default:
-// 			event, ok := iter.Next()
-// 			if !ok {
-// 				// 迭代结束，退出循环
-// 				goto done
-// 			}
-// 			if event.Output != nil && event.Output.MessageOutput != nil {
-// 				lastMessage = event.Output.MessageOutput.Message
-// 			}
-// 		}
-// 	}
-// done:
+	// 	var lastMessage *schema.Message
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return nil, ctx.Err()
+	// 		default:
+	// 			event, ok := iter.Next()
+	// 			if !ok {
+	// 				// 迭代结束，退出循环
+	// 				goto done
+	// 			}
+	// 			if event.Output != nil && event.Output.MessageOutput != nil {
+	// 				lastMessage = event.Output.MessageOutput.Message
+	// 			}
+	// 		}
+	// 	}
+	// done:
 
-// 	if lastMessage == nil {
-// 		return nil, fmt.Errorf("处理未返回结果")
-// 	}
-//debug
+	// 	if lastMessage == nil {
+	// 		return nil, fmt.Errorf("处理未返回结果")
+	// 	}
+	//debug
 	var (
 		lastMessage      *schema.Message
 		lastCustomOutput interface{}
@@ -459,13 +459,13 @@ func (s *ExcelService) runAgent(ctx context.Context, taskID, query, workDir stri
 		}
 	}
 
-	done:
+done:
 
 	if lastMessage == nil {
 		if lastCustomOutput != nil {
 			return map[string]interface{}{
-				"task_id": taskID,
-				"result":  lastCustomOutput,
+				"task_id":  taskID,
+				"result":   lastCustomOutput,
 				"previews": previews,
 			}, nil
 		}
@@ -478,15 +478,15 @@ func (s *ExcelService) runAgent(ctx context.Context, taskID, query, workDir stri
 	}
 
 	result := map[string]interface{}{
-		"task_id": taskID,
-		"message": lastMessage.Content,
-		"role":    lastMessage.Role,
+		"task_id":  taskID,
+		"message":  lastMessage.Content,
+		"role":     lastMessage.Role,
 		"previews": previews,
 	}
 
 	return result, nil
 
-//debug
+	//debug
 
 	// 解析结果
 	// result := map[string]interface{}{
