@@ -374,6 +374,27 @@ func TestOpenAIExecutor_APIKeyNotInRequestBody(t *testing.T) {
 	}
 }
 
+func TestOpenAIExecutor_EmptyAssistantContent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(chatResponse{
+			Choices: []chatChoice{{Message: chatMessage{Role: "assistant", Content: ""}}},
+			Usage:   &chatUsageData{PromptTokens: 1, CompletionTokens: 0, TotalTokens: 1},
+		})
+	}))
+	defer srv.Close()
+
+	e := NewOpenAIExecutor(OpenAIConfig{
+		APIKey: "test-key", BaseURL: srv.URL, Model: "m", Timeout: 5 * time.Second,
+	})
+	result, err := e.Execute(context.Background(), Request{Task: "test"})
+	if err != nil {
+		t.Fatalf("empty content is valid (not an error): %v", err)
+	}
+	if result.Text != "" {
+		t.Errorf("text = %q, want empty string", result.Text)
+	}
+}
+
 // ── Interface Compliance ─────────────────────────────────────────────────
 
 func TestFakeExecutor_ImplementsInterface(t *testing.T) {
