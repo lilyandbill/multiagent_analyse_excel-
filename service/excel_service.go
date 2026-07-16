@@ -327,35 +327,174 @@ func (s *ExcelService) runAgent(ctx context.Context, taskID, query, workDir stri
 
 	iter := runner.Run(ctx, []*schema.Message{userMsg})
 
-	var lastMessage *schema.Message
+// 	var lastMessage *schema.Message
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			return nil, ctx.Err()
+// 		default:
+// 			event, ok := iter.Next()
+// 			if !ok {
+// 				// 迭代结束，退出循环
+// 				goto done
+// 			}
+// 			if event.Output != nil && event.Output.MessageOutput != nil {
+// 				lastMessage = event.Output.MessageOutput.Message
+// 			}
+// 		}
+// 	}
+// done:
+
+// 	if lastMessage == nil {
+// 		return nil, fmt.Errorf("处理未返回结果")
+// 	}
+//debug
+	var (
+		lastMessage      *schema.Message
+		lastCustomOutput interface{}
+		eventCount       int
+	)
+
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("agent context cancelled: %w", ctx.Err())
+
 		default:
 			event, ok := iter.Next()
 			if !ok {
-				// 迭代结束，退出循环
 				goto done
 			}
-			if event.Output != nil && event.Output.MessageOutput != nil {
-				lastMessage = event.Output.MessageOutput.Message
+
+			eventCount++
+
+			if event == nil {
+				logger.Warn(
+					"收到空 Agent Event",
+					zap.String("task_id", taskID),
+					zap.Int("event_count", eventCount),
+				)
+				continue
 			}
+
+			logger.Info(
+				"收到 Agent Event",
+				zap.String("task_id", taskID),
+				zap.Int("event_count", eventCount),
+				zap.String("agent_name", event.AgentName),
+				zap.Bool("has_error", event.Err != nil),
+				zap.Bool("has_output", event.Output != nil),
+				zap.Bool("has_action", event.Action != nil),
+			)
+
+			// 最重要：不能忽略 Eino 事件中的真实错误
+			if event.Err != nil {
+				logger.Error(
+					"Agent 执行失败",
+					zap.String("task_id", taskID),
+					zap.String("agent_name", event.AgentName),
+					zap.Error(event.Err),
+				)
+
+				return nil, fmt.Errorf(
+					"agent %q 执行失败: %w",
+					event.AgentName,
+					event.Err,
+				)
+			}
+
+			if event.Output == nil {
+				continue
+			}
+
+			if event.Output.CustomizedOutput != nil {
+				lastCustomOutput = event.Output.CustomizedOutput
+
+				logger.Info(
+					"收到 Agent 自定义输出",
+					zap.String("task_id", taskID),
+					zap.String("agent_name", event.AgentName),
+					zap.String(
+						"output_type",
+						fmt.Sprintf("%T", event.Output.CustomizedOutput),
+					),
+				)
+			}
+
+			messageOutput := event.Output.MessageOutput
+			if messageOutput == nil {
+				continue
+			}
+
+			// 同时兼容普通消息和流式消息
+			message, err := messageOutput.GetMessage()
+			if err != nil {
+				logger.Error(
+					"读取 Agent 消息失败",
+					zap.String("task_id", taskID),
+					zap.String("agent_name", event.AgentName),
+					zap.Error(err),
+				)
+
+				return nil, fmt.Errorf(
+					"读取 agent %q 输出失败: %w",
+					event.AgentName,
+					err,
+				)
+			}
+
+			if message == nil {
+				continue
+			}
+
+			lastMessage = message
+
+			logger.Info(
+				"收到 Agent 消息",
+				zap.String("task_id", taskID),
+				zap.String("agent_name", event.AgentName),
+				zap.String("role", string(message.Role)),
+				zap.Int("content_length", len(message.Content)),
+			)
 		}
 	}
-done:
+
+	done:
 
 	if lastMessage == nil {
-		return nil, fmt.Errorf("处理未返回结果")
+		if lastCustomOutput != nil {
+			return map[string]interface{}{
+				"task_id": taskID,
+				"result":  lastCustomOutput,
+				"previews": previews,
+			}, nil
+		}
+
+		return nil, fmt.Errorf(
+			"Agent 执行结束但未返回消息: task_id=%s, event_count=%d",
+			taskID,
+			eventCount,
+		)
 	}
 
-	// 解析结果
 	result := map[string]interface{}{
-		"task_id":  taskID,
-		"message":  lastMessage.Content,
-		"role":     lastMessage.Role,
+		"task_id": taskID,
+		"message": lastMessage.Content,
+		"role":    lastMessage.Role,
 		"previews": previews,
 	}
+
+	return result, nil
+
+//debug
+
+	// 解析结果
+	// result := map[string]interface{}{
+	// 	"task_id":  taskID,
+	// 	"message":  lastMessage.Content,
+	// 	"role":     lastMessage.Role,
+	// 	"previews": previews,
+	// }
 
 	return result, nil
 }

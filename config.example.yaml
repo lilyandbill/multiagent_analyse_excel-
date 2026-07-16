@@ -21,13 +21,13 @@ log:
   max_size: 100
   max_backups: 7
   max_age: 7
-
+#方舟
 ark:
   model: "gpt-4"
   api_key: "sk-..."
   base_url: "https://..."
   region: "cn-beijing"
-
+# 需使用glm
 openai:
   model: "gpt-4"
   api_key: "sk-..."
