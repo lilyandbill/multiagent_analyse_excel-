@@ -10,7 +10,7 @@ import (
 
 func TestRunDemo_Success(t *testing.T) {
 	ctx := context.Background()
-	result, err := runDemo(ctx, "analyze sample data")
+	result, err := runDemo(ctx, "fake", "analyze sample data")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestRunDemo_Success(t *testing.T) {
 
 func TestRunDemo_EmptyTask(t *testing.T) {
 	ctx := context.Background()
-	_, err := runDemo(ctx, "")
+	_, err := runDemo(ctx, "fake", "")
 	if err == nil {
 		t.Fatal("expected error for empty task")
 	}
@@ -69,7 +69,7 @@ func TestRunDemo_EmptyTask(t *testing.T) {
 
 func TestRunDemo_WhitespaceOnlyTask(t *testing.T) {
 	ctx := context.Background()
-	_, err := runDemo(ctx, "   ")
+	_, err := runDemo(ctx, "fake", "   ")
 	if err == nil {
 		t.Fatal("expected error for whitespace-only task")
 	}
@@ -79,11 +79,11 @@ func TestRunDemo_Deterministic(t *testing.T) {
 	// Two runs with the same input produce identical results.
 	ctx := context.Background()
 
-	r1, err := runDemo(ctx, "deterministic test")
+	r1, err := runDemo(ctx, "fake", "deterministic test")
 	if err != nil {
 		t.Fatalf("run 1: %v", err)
 	}
-	r2, err := runDemo(ctx, "deterministic test")
+	r2, err := runDemo(ctx, "fake", "deterministic test")
 	if err != nil {
 		t.Fatalf("run 2: %v", err)
 	}

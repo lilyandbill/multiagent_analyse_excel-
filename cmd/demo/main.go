@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"excel-agent/artifacts"
+	"excel-agent/executor"
 	"excel-agent/hooks"
 	"excel-agent/skills"
 	"excel-agent/workflow"
@@ -21,11 +22,12 @@ import (
 
 func main() {
 	task := flag.String("task", "", "Task description (required)")
+	execName := flag.String("executor", "fake", "Executor: fake or openai")
 	flag.Parse()
 
 	ctx := context.Background()
 
-	result, err := runDemo(ctx, *task)
+	result, err := runDemo(ctx, *execName, *task)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -50,10 +52,25 @@ type demoResult struct {
 }
 
 // runDemo orchestrates the full agent harness.
-func runDemo(ctx context.Context, task string) (*demoResult, error) {
+func runDemo(ctx context.Context, execName, task string) (*demoResult, error) {
 	task = strings.TrimSpace(task)
 	if task == "" {
 		return nil, fmt.Errorf("task must not be empty")
+	}
+
+	// ── Select executor ──────────────────────────────────────────────
+	var exec executor.Executor
+	switch strings.ToLower(execName) {
+	case "fake":
+		exec = executor.FakeExecutor{}
+	case "openai":
+		cfg, err := executor.OpenAIConfigFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("openai config: %w", err)
+		}
+		exec = executor.NewOpenAIExecutor(cfg)
+	default:
+		return nil, fmt.Errorf("unknown executor: %q (use 'fake' or 'openai')", execName)
 	}
 
 	workDir, err := os.MkdirTemp("", "agent-demo-*")
@@ -80,7 +97,11 @@ func runDemo(ctx context.Context, task string) (*demoResult, error) {
 		MaxEstimatedCost: 0.05,
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		taskVal, _ := input["task"].(string)
-		return fmt.Sprintf("deterministic result for: %s", taskVal), nil
+		result, err := exec.Execute(ctx, executor.Request{Task: taskVal})
+		if err != nil {
+			return nil, err
+		}
+		return result.Text, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create skill: %w", err)
