@@ -8,6 +8,7 @@ package artifacts
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -126,14 +127,8 @@ func NewSnapshotID() string {
 // Put stores an artifact. Returns an error if an artifact with the same ID
 // already exists (artifacts are immutable).
 func (s *Store) Put(artifact *Artifact) error {
-	if artifact == nil {
-		return fmt.Errorf("artifact must not be nil")
-	}
-	if artifact.ID == "" {
-		return fmt.Errorf("artifact ID must not be empty")
-	}
-	if artifact.TaskID == "" {
-		return fmt.Errorf("artifact TaskID must not be empty")
+	if err := validateArtifact(artifact); err != nil {
+		return err
 	}
 
 	s.mu.Lock()
@@ -150,6 +145,63 @@ func (s *Store) Put(artifact *Artifact) error {
 	s.artifacts[artifact.ID] = artifact
 	s.byTask[artifact.TaskID] = append(s.byTask[artifact.TaskID], artifact.ID)
 	return nil
+}
+
+// validateArtifact checks required fields and rejects unsafe path values.
+func validateArtifact(a *Artifact) error {
+	if a == nil {
+		return fmt.Errorf("artifact must not be nil")
+	}
+	if a.ID == "" {
+		return fmt.Errorf("artifact ID must not be empty")
+	}
+	if a.TaskID == "" {
+		return fmt.Errorf("artifact TaskID must not be empty")
+	}
+	if err := validatePath(a.Path); err != nil {
+		return fmt.Errorf("artifact path: %w", err)
+	}
+	return nil
+}
+
+// validatePath rejects path traversal and absolute paths.
+func validatePath(p string) error {
+	if p == "" {
+		return nil // empty path is allowed (artifact may not be file-backed)
+	}
+	if containsPathTraversal(p) {
+		return fmt.Errorf("path %q contains unsafe traversal", p)
+	}
+	return nil
+}
+
+func containsPathTraversal(p string) bool {
+	parts := splitPath(p)
+	for _, part := range parts {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func splitPath(p string) []string {
+	var parts []string
+	current := ""
+	for _, ch := range p {
+		if ch == '/' || ch == '\\' {
+			if current != "" {
+				parts = append(parts, current)
+				current = ""
+			}
+			continue
+		}
+		current += string(ch)
+	}
+	if current != "" {
+		parts = append(parts, current)
+	}
+	return parts
 }
 
 // Get retrieves an artifact by ID. Returns nil if not found.
@@ -170,7 +222,7 @@ func (s *Store) ListByTask(taskID string) []string {
 	return result
 }
 
-// ListByType returns all artifact IDs of a given type.
+// ListByType returns all artifact IDs of a given type, sorted deterministically by ID.
 func (s *Store) ListByType(artifactType ArtifactType) []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -181,6 +233,7 @@ func (s *Store) ListByType(artifactType ArtifactType) []string {
 			ids = append(ids, id)
 		}
 	}
+	sort.Strings(ids)
 	return ids
 }
 

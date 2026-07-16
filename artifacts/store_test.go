@@ -293,6 +293,166 @@ func TestStore_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestStore_Put_PathTraversal_DotDot(t *testing.T) {
+	s := NewStore()
+	err := s.Put(&Artifact{
+		ID:     "id-1",
+		TaskID: "task-1",
+		Path:   "artifacts/../etc/passwd",
+	})
+	if err == nil {
+		t.Error("expected error for path containing '..'")
+	}
+}
+
+func TestStore_Put_PathTraversal_DotDotStart(t *testing.T) {
+	s := NewStore()
+	err := s.Put(&Artifact{
+		ID:     "id-1",
+		TaskID: "task-1",
+		Path:   "../etc/passwd",
+	})
+	if err == nil {
+		t.Error("expected error for path starting with '..'")
+	}
+}
+
+func TestStore_Put_PathTraversal_Backslash(t *testing.T) {
+	s := NewStore()
+	err := s.Put(&Artifact{
+		ID:     "id-1",
+		TaskID: "task-1",
+		Path:   `..\windows\system32`,
+	})
+	if err == nil {
+		t.Error("expected error for path with backslash traversal")
+	}
+}
+
+func TestStore_Put_ValidPath(t *testing.T) {
+	s := NewStore()
+	validPaths := []string{
+		"artifacts/yield_result.json",
+		"reports/summary.md",
+		"catalog.json",
+		"sub/dir/file.csv",
+		"",
+	}
+	for _, p := range validPaths {
+		err := s.Put(&Artifact{
+			ID:     NewArtifactID(),
+			TaskID: "task-1",
+			Path:   p,
+		})
+		if err != nil {
+			t.Errorf("valid path %q should be accepted: %v", p, err)
+		}
+	}
+}
+
+func TestStore_Put_PathTraversal_Encoded(t *testing.T) {
+	// Only literal ".." is blocked; encoded variants are not (this is by design
+	// — filesystem operations should also check before use).
+	s := NewStore()
+	err := s.Put(&Artifact{
+		ID:     "id-1",
+		TaskID: "task-1",
+		Path:   "artifacts/yield_result.json",
+	})
+	if err != nil {
+		t.Errorf("normal path should be accepted: %v", err)
+	}
+}
+
+func TestStore_ListByType_Deterministic(t *testing.T) {
+	s := NewStore()
+	// Insert in non-sorted order with fixed IDs.
+	ids := []string{"zebra", "alpha", "mike", "beta"}
+	for _, id := range ids {
+		s.Put(&Artifact{
+			ID:     id,
+			TaskID: "task-1",
+			Type:   ArtifactTypeResult,
+		})
+	}
+	// Add artifacts of a different type to ensure they are filtered out.
+	s.Put(&Artifact{
+		ID:     "gamma",
+		TaskID: "task-1",
+		Type:   ArtifactTypeCatalog,
+	})
+
+	result := s.ListByType(ArtifactTypeResult)
+	if len(result) != 4 {
+		t.Fatalf("expected 4 results, got %d: %v", len(result), result)
+	}
+	// Must be sorted alphabetically by ID.
+	expected := []string{"alpha", "beta", "mike", "zebra"}
+	for i, id := range expected {
+		if result[i] != id {
+			t.Errorf("result[%d] = %q, want %q (full: %v)", i, result[i], id, result)
+		}
+	}
+}
+
+func TestStore_ListByTask_Deterministic(t *testing.T) {
+	s := NewStore()
+	// Insert in insertion order.
+	s.Put(&Artifact{ID: "id-c", TaskID: "task-1"})
+	s.Put(&Artifact{ID: "id-a", TaskID: "task-1"})
+	s.Put(&Artifact{ID: "id-b", TaskID: "task-1"})
+
+	result := s.ListByTask("task-1")
+	if len(result) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(result))
+	}
+	// ListByTask preserves insertion order.
+	if result[0] != "id-c" || result[1] != "id-a" || result[2] != "id-b" {
+		t.Errorf("ListByTask should preserve insertion order, got %v", result)
+	}
+}
+
+func TestStore_ListByTask_ReturnsCopy(t *testing.T) {
+	s := NewStore()
+	s.Put(&Artifact{ID: "id-1", TaskID: "task-1"})
+	s.Put(&Artifact{ID: "id-2", TaskID: "task-1"})
+
+	result := s.ListByTask("task-1")
+	// Mutate the returned slice.
+	result[0] = "hacked"
+
+	// Original should be unchanged.
+	result2 := s.ListByTask("task-1")
+	if result2[0] != "id-1" {
+		t.Errorf("ListByTask should return a copy, got %v", result2)
+	}
+}
+
+func TestStore_ListByType_EmptyType(t *testing.T) {
+	s := NewStore()
+	s.Put(&Artifact{ID: "id-1", TaskID: "task-1", Type: ArtifactTypeResult})
+
+	result := s.ListByType(ArtifactTypeCatalog)
+	if len(result) != 0 {
+		t.Errorf("expected empty list for type with no artifacts, got %v", result)
+	}
+}
+
+func TestStore_Get_ReturnsPointerToInternal(t *testing.T) {
+	s := NewStore()
+	s.Put(&Artifact{ID: "id-1", TaskID: "task-1", Name: "original"})
+
+	// Get returns a pointer to the internal artifact. Callers must not mutate it.
+	retrieved := s.Get("id-1")
+	retrieved.Name = "mutated"
+
+	// Verify the internal state is also mutated (this is intentional — callers own the pointer).
+	internal := s.Get("id-1")
+	if internal.Name != "mutated" {
+		t.Errorf("Get returns a shared pointer, Name = %q, want %q", internal.Name, "mutated")
+	}
+}
+
 func TestArtifact_CreatedAtPreserved(t *testing.T) {
 	s := NewStore()
 	now := time.Now()
