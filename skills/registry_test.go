@@ -190,3 +190,135 @@ func TestRegistry_Count(t *testing.T) {
 		t.Errorf("Count = %d, want 3", r.Count())
 	}
 }
+
+func TestRegistry_Register_InvalidManifest(t *testing.T) {
+	r := NewRegistry()
+	// Construct a Skill directly with an invalid manifest (empty name),
+	// bypassing NewSkill's validation to exercise the registry's defense-in-depth.
+	invalidSkill := &Skill{
+		Manifest: Manifest{},
+		Handler: func(ctx context.Context, input map[string]any) (any, error) {
+			return nil, nil
+		},
+	}
+	err := r.Register(invalidSkill)
+	if err == nil {
+		t.Error("expected error for invalid manifest")
+	}
+}
+
+func TestRegistry_Register_InvalidManifest_ZeroVersion(t *testing.T) {
+	r := NewRegistry()
+	invalidSkill := &Skill{
+		Manifest: Manifest{
+			Name:        "test",
+			Version:     Version{0, 0, 0},
+			Description: "desc",
+		},
+		Handler: func(ctx context.Context, input map[string]any) (any, error) {
+			return nil, nil
+		},
+	}
+	err := r.Register(invalidSkill)
+	if err == nil {
+		t.Error("expected error for zero version in manifest")
+	}
+}
+
+func TestRegistry_Register_InvalidManifest_NoDescription(t *testing.T) {
+	r := NewRegistry()
+	invalidSkill := &Skill{
+		Manifest: Manifest{
+			Name:    "test",
+			Version: Version{1, 0, 0},
+		},
+		Handler: func(ctx context.Context, input map[string]any) (any, error) {
+			return nil, nil
+		},
+	}
+	err := r.Register(invalidSkill)
+	if err == nil {
+		t.Error("expected error for missing description")
+	}
+}
+
+func TestRegistry_ConcurrentAccess(t *testing.T) {
+	r := NewRegistry()
+	done := make(chan bool)
+
+	// Concurrent registrations of different skills.
+	for i := 0; i < 20; i++ {
+		go func(n int) {
+			name := "skill_" + string(rune('a'+n))
+			_ = r.Register(makeTestSkill(name, 1, 0, 0))
+			done <- true
+		}(i)
+	}
+
+	// Concurrent readers.
+	for i := 0; i < 10; i++ {
+		go func() {
+			for j := 0; j < 20; j++ {
+				r.Count()
+				r.ActiveCount()
+				r.ListSkills()
+			}
+			done <- true
+		}()
+	}
+
+	// Wait for all goroutines.
+	for i := 0; i < 30; i++ {
+		<-done
+	}
+
+	// All 20 skills should be registered.
+	if r.Count() != 20 {
+		t.Errorf("Count = %d, want 20", r.Count())
+	}
+	names := r.ListSkills()
+	if len(names) != 20 {
+		t.Errorf("ListSkills = %d names, want 20", len(names))
+	}
+}
+
+func TestRegistry_ListSkills_EmptyRegistry(t *testing.T) {
+	r := NewRegistry()
+	names := r.ListSkills()
+	if len(names) != 0 {
+		t.Errorf("expected empty list, got %v", names)
+	}
+}
+
+func TestRegistry_ListVersions_NotFound(t *testing.T) {
+	r := NewRegistry()
+	versions := r.ListVersions("nonexistent")
+	if versions != nil {
+		t.Errorf("expected nil for nonexistent skill, got %v", versions)
+	}
+}
+
+func TestRegistry_GetActive_NotActivated(t *testing.T) {
+	r := NewRegistry()
+	r.Register(makeTestSkill("s1", 1, 0, 0))
+	// Skill is registered but not activated.
+	active := r.GetActive("s1")
+	if active != nil {
+		t.Error("expected nil for registered but not activated skill")
+	}
+}
+
+func TestRegistry_Register_SameNameDifferentVersion(t *testing.T) {
+	r := NewRegistry()
+	err := r.Register(makeTestSkill("s1", 1, 0, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = r.Register(makeTestSkill("s1", 1, 1, 0))
+	if err != nil {
+		t.Fatalf("different versions should be allowed: %v", err)
+	}
+	if r.Count() != 2 {
+		t.Errorf("Count = %d, want 2", r.Count())
+	}
+}

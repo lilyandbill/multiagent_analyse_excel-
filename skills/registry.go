@@ -31,6 +31,9 @@ func (r *Registry) Register(skill *Skill) error {
 	if skill == nil {
 		return fmt.Errorf("skill must not be nil")
 	}
+	if err := skill.Manifest.Validate(); err != nil {
+		return fmt.Errorf("invalid skill manifest: %w", err)
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
