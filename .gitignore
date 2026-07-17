@@ -1,4 +1,5 @@
 # 敏感配置文件
+.env
 config.yaml
 
 # IDE
