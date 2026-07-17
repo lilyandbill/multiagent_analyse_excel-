@@ -42,13 +42,16 @@ const (
 	// StateFailed is the terminal failure state.
 	StateFailed State = "FAILED"
 
+	// StateCancelled means the user explicitly cancelled the run.
+	StateCancelled State = "CANCELLED"
+
 	// StateRollback means the system is reverting to a previous snapshot.
 	StateRollback State = "ROLLBACK"
 )
 
 // IsTerminal returns true if the state is a terminal state (no further transitions).
 func (s State) IsTerminal() bool {
-	return s == StateDone || s == StateFailed
+	return s == StateDone || s == StateFailed || s == StateCancelled
 }
 
 // IsActive returns true if the task is still being processed.
@@ -109,6 +112,7 @@ var transitionTable = map[State]map[State]bool{
 	},
 	StateWaitingApproval: {
 		StateExecuting: true,
+		StateCancelled: true,
 		StateRollback:  true,
 		StateFailed:    true,
 	},
@@ -133,8 +137,9 @@ var transitionTable = map[State]map[State]bool{
 		StateFailed:     true,
 	},
 	// Terminal states have no outgoing transitions.
-	StateDone:   {},
-	StateFailed: {},
+	StateDone:      {},
+	StateFailed:    {},
+	StateCancelled: {},
 }
 
 // String returns the string representation of the state.

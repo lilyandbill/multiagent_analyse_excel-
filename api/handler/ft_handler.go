@@ -203,8 +203,18 @@ func (h *FTHandler) AnalyzeFT(c *gin.Context) {
 func (h *FTHandler) ConfirmFT(c *gin.Context) {
 	var req ftConfirmRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		newResponse(c, false, 400, "请求参数无效: run_id 必填", nil)
-		return
+		// Try path param fallback for /excel/runs/:run_id/confirm.
+		if rid := c.Param("run_id"); rid != "" {
+			req.RunID = rid
+			req.Confirmed = true
+		} else {
+			newResponse(c, false, 400, "请求参数无效: run_id 必填", nil)
+			return
+		}
+	}
+	// Path param overrides body if present.
+	if rid := c.Param("run_id"); rid != "" {
+		req.RunID = rid
 	}
 
 	// Handle cancellation.

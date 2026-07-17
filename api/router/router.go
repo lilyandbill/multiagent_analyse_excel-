@@ -48,13 +48,9 @@ func (r *Router) SetupRoutes() {
 	// API v1 路由组
 	v1 := r.engine.Group("/api/v1")
 	{
-		// Excel 相关接口
+		// Excel 相关接口 (legacy multi-agent)
 		excel := v1.Group("/excel")
 		{
-			// 分析接口（新）
-			excel.POST("/analyze", r.excelHandler.AnalyzeExcel)
-
-			// 任务管理
 			excel.GET("/tasks", r.excelHandler.ListTasks)
 			excel.GET("/task/:task_id", r.excelHandler.GetTaskStatus)
 			excel.GET("/preview/:task_id", r.excelHandler.PreviewFile)
@@ -62,7 +58,19 @@ func (r *Router) SetupRoutes() {
 			excel.DELETE("/task/:task_id", r.excelHandler.DeleteTask)
 		}
 
-		// FT Yield 分析 (V2 single-agent workflow)
+		// FT Yield 分析 (single-agent V2 — primary endpoint)
+		// POST /api/v1/excel/analyze — upload + plan → WAITING_CONFIRMATION
+		v1.POST("/excel/analyze", r.ftHandler.AnalyzeFT)
+
+		// Run management (single-agent V2)
+		runs := v1.Group("/excel/runs")
+		{
+			runs.GET("/:run_id", r.ftHandler.GetFTStatus)
+			runs.POST("/:run_id/confirm", r.ftHandler.ConfirmFT)
+			runs.GET("/:run_id/report", r.ftHandler.GetFTReport)
+		}
+
+		// FT alias (backward compat)
 		ft := v1.Group("/ft")
 		{
 			ft.POST("/analyze", r.ftHandler.AnalyzeFT)
