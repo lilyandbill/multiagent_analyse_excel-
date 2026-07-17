@@ -242,3 +242,114 @@ func (o *Orchestrator) ExecutionPlan() string {
 	}
 	return strings.TrimSpace(o.PlanText)
 }
+
+// ── Serialization ──────────────────────────────────────────────────────────
+
+// RunState is the serializable portion of an Orchestrator for persistence.
+type RunState struct {
+	TaskID       string              `json:"task_id"`
+	WorkDir      string              `json:"work_dir"`
+	Task         string              `json:"task"`
+	State        workflow.State      `json:"state"`
+	PlanText     string              `json:"plan_text"`
+	Catalog      *DataCatalog        `json:"catalog,omitempty"`
+	YieldParams  YieldParams         `json:"yield_params"`
+	YieldResult  *YieldResult        `json:"yield_result,omitempty"`
+	Verification *VerificationResult `json:"verification,omitempty"`
+	ReportPath   string              `json:"report_path,omitempty"`
+	ArtifactRefs []string            `json:"artifact_refs"`
+	Usage        workflow.Usage      `json:"usage"`
+	CreatedAt    time.Time           `json:"created_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+}
+
+// MarshalState serializes the orchestrator's current state.
+func (o *Orchestrator) MarshalState(task string) RunState {
+	snap := o.Workflow.Snapshot()
+	return RunState{
+		TaskID:       o.Workflow.TaskID,
+		WorkDir:      o.Workflow.WorkDir,
+		Task:         task,
+		State:        snap.State,
+		PlanText:     o.PlanText,
+		Catalog:      o.Catalog,
+		YieldParams:  o.YieldParams,
+		YieldResult:  o.YieldResult,
+		Verification: o.Verification,
+		ReportPath:   o.ReportPath,
+		ArtifactRefs: append([]string{}, o.artifactRefs...),
+		Usage:        snap.Usage,
+		CreatedAt:    o.Workflow.Snapshot().StartedAt,
+		UpdatedAt:    time.Now(),
+	}
+}
+
+// RestoreOrchestrator rebuilds an orchestrator from persisted state.
+func RestoreOrchestrator(rs RunState, exec executor.Executor) *Orchestrator {
+	tc := workflow.NewTaskContext(rs.TaskID, rs.WorkDir)
+	// Fast-forward state by directly setting internal fields.
+	// We bypass Transition() because we're restoring, not making new transitions.
+	restoreTaskContext(tc, rs.State, rs.Usage)
+
+	skillReg := skills.NewRegistry()
+	skill, _ := skills.NewSkill(skills.Manifest{
+		Name:        skills.SkillFTYieldAnalysis,
+		DisplayName: "FT Yield Analysis",
+		Version:     skills.Version{Major: 1, Minor: 0, Patch: 0},
+		Description: "Calculates and verifies yield for Final Test data.",
+	}, func(ctx context.Context, input map[string]any) (any, error) {
+		return "ft_yield_analysis executed", nil
+	})
+	skillReg.Register(skill)
+	skillReg.ActivateLatest(skills.SkillFTYieldAnalysis)
+
+	return &Orchestrator{
+		Workflow:     tc,
+		Skills:       skillReg,
+		Hooks:        hooks.NewPipeline(hooks.NewRegistry()),
+		Artifacts:    artifacts.NewStore(),
+		Executor:     exec,
+		Catalog:      rs.Catalog,
+		PlanText:     rs.PlanText,
+		YieldParams:  rs.YieldParams,
+		YieldResult:  rs.YieldResult,
+		Verification: rs.Verification,
+		ReportPath:   rs.ReportPath,
+		artifactRefs: append([]string{}, rs.ArtifactRefs...),
+	}
+}
+
+// restoreTaskContext directly sets internal state for restoration.
+func restoreTaskContext(tc *workflow.TaskContext, state workflow.State, usage workflow.Usage) {
+	// Use the internal Snapshot pattern to restore state.
+	// We need access to set fields — use the fact that NewTaskContext returns
+	// a fresh context, then we transition to the target state.
+	// For restoration, we go through valid transitions to reach the target.
+	transitions := transitionsTo(state)
+	for _, t := range transitions {
+		_ = tc.Transition(context.Background(), t)
+	}
+	// Usage is tracked via Record* methods during the resumed run.
+	_ = usage
+}
+
+// transitionsTo returns the minimal sequence of transitions to reach a target state.
+func transitionsTo(target workflow.State) []workflow.State {
+	path := []workflow.State{
+		workflow.StateIngesting,
+		workflow.StateInspecting,
+		workflow.StatePlanning,
+		workflow.StateWaitingApproval,
+		workflow.StateExecuting,
+		workflow.StateVerifying,
+		workflow.StateReporting,
+	}
+	var result []workflow.State
+	for _, s := range path {
+		result = append(result, s)
+		if s == target {
+			break
+		}
+	}
+	return result
+}

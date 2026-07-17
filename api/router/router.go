@@ -16,6 +16,7 @@ import (
 type Router struct {
 	engine       *gin.Engine
 	excelHandler *handler.ExcelHandler
+	ftHandler    *handler.FTHandler
 }
 
 // NewRouter 创建路由
@@ -35,6 +36,7 @@ func NewRouter(excelService *service.ExcelService) *Router {
 	return &Router{
 		engine:       engine,
 		excelHandler: handler.NewExcelHandler(excelService),
+		ftHandler:    handler.NewFTHandler(),
 	}
 }
 
@@ -58,6 +60,15 @@ func (r *Router) SetupRoutes() {
 			excel.GET("/preview/:task_id", r.excelHandler.PreviewFile)
 			excel.GET("/download/:task_id", r.excelHandler.DownloadResult)
 			excel.DELETE("/task/:task_id", r.excelHandler.DeleteTask)
+		}
+
+		// FT Yield 分析 (V2 single-agent workflow)
+		ft := v1.Group("/ft")
+		{
+			ft.POST("/analyze", r.ftHandler.AnalyzeFT)
+			ft.POST("/confirm", r.ftHandler.ConfirmFT)
+			ft.GET("/status/:run_id", r.ftHandler.GetFTStatus)
+			ft.GET("/report/:run_id", r.ftHandler.GetFTReport)
 		}
 
 		// 统计接口

@@ -357,7 +357,7 @@ func TestReport_ContainsAllSections(t *testing.T) {
 		TaskID: "t1", Task: "test", PlanSummary: "plan",
 		YieldResult: &YieldResult{
 			TotalCount: 10, PassCount: 8, FailCount: 2, Yield: 0.8,
-			Params: YieldParams{GroupBy: "LOT"},
+			Params:  YieldParams{GroupBy: "LOT"},
 			GroupBy: "LOT",
 			Groups: []GroupYield{
 				{GroupValue: "LotA", Total: 6, Pass: 5, Fail: 1, Yield: 0.8333},
